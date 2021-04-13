@@ -13,7 +13,7 @@ double MAX_FLOW = 1e9;
 struct Node {
     int id;
     double weight;
-    std::vector<int> edges_from;
+    std::vector<int> neighbors; // edges_from;
     std::vector<int> edges_to;
 };
 
@@ -37,6 +37,7 @@ struct Edge {
 
 Edge inverted(Edge edge) {
     std::swap(edge.from, edge.to);
+    edge.id += 1;
     edge.weight *= -1;
     edge.capacity = 0;
     return edge;
@@ -65,9 +66,9 @@ public:
             int u = q.front();
             q.pop();
             inq[u] = false;
-            for (int &edge_id : nodes[u].edges_from) {
+            for (int &edge_id : nodes[u].neighbors) {
                 Edge edge = edges[edge_id];
-                if (edge.capacity > 0 && dist[edge.to] - EPS > dist[u] + edge.weight) {
+                if (edge.capacity > EPS && dist[edge.to] - EPS > dist[u] + edge.weight) {
                     dist[edge.to] = dist[u] + edge.weight;
                     path[edge.to] = edge;
                     if (!inq[edge.to]) {
@@ -81,12 +82,16 @@ public:
 
     double min_cost_flow(int s, int t, double max_flow=MAX_FLOW) {
         Graph gr;
-        gr.nodes = nodes;
+        gr.nodes = std::vector<Node>(nodes.size());
+        for (Node n : nodes) {
+            gr.nodes[n.id] = {n.id, n.weight, {}, {}};
+        }
         for (Edge e : edges) {
             gr.edges.push_back(e);
-            gr.edges.back().id = gr.edges.size() - 1;
-            gr.edges.push_back(inverted(e));
-            gr.edges.back().id = gr.edges.size() - 1;
+            gr.edges.back().id *= 2;
+            gr.nodes[e.from].neighbors.push_back(gr.edges.back().id);
+            gr.edges.push_back(inverted(gr.edges.back()));
+            gr.nodes[e.to].neighbors.push_back(gr.edges.back().id);
         }
 
         double flow = 0;
@@ -131,52 +136,55 @@ public:
     }
 
     void ollivier(double idleness=0) {
-        _fix_graph();
+        Graph gr;
+        gr.nodes = nodes;
+        gr.edges = edges;
+        gr._fix_graph();
         //std::vector<std::vector<double>> paths = floyd_warshall(*this);
         for (Edge &edge : edges) {
             int v1_id = edge.from, v2_id = edge.to;
-            std::vector<double> m1 = _create_mu(v1_id, idleness),
+            std::vector<double> mu1 = _create_mu(v1_id, idleness),
                                 mu2 = _create_mu(v2_id, idleness);
             int e_size = edges.size(), n_size = nodes.size();
-            Node s = {(int)nodes.size(), 1};
-            for (int edge_id : nodes[v1_id].edges_from) {
-                Edge e = {(int)edges.size(), s.id, edges[edge_id].to, 0,
-                          m1[edges[edge_id].to]};
-                edges.push_back(e);
-                s.edges_from.push_back(e.id);
-                nodes[edges[edge_id].to].edges_to.push_back(e.id);
+            Node s = {n_size, 1};
+            for (int edge_id : nodes[v1_id].neighbors) {
+                Edge e = {(int)gr.edges.size(), s.id, edges[edge_id].to, 0,
+                          mu1[edges[edge_id].to]};
+                gr.edges.push_back(e);
+                s.neighbors.push_back(e.id);
+                //gr.nodes[gr.edges[edge_id].to].edges_to.push_back(e.id);
             }
-            Node t = {(int)nodes.size() + 1, 1};
-            for (int edge_id : nodes[v2_id].edges_from) {
-                Edge e = {(int)edges.size(), edges[edge_id].to, t.id, 0,
+            Node t = {n_size + 1, 1};
+            for (int edge_id : nodes[v2_id].neighbors) {
+                Edge e = {(int)gr.edges.size(), edges[edge_id].to, t.id, 0,
                           mu2[edges[edge_id].to]};
-                edges.push_back(e);
-                nodes[edges[edge_id].to].edges_from.push_back(e.id);
-                t.edges_to.push_back(e.id);
+                gr.edges.push_back(e);
+                gr.nodes[edges[edge_id].to].neighbors.push_back(e.id);
+                //t.edges_to.push_back(e.id);
             }
-            Edge e = {(int)edges.size(), s.id, v1_id, 0, m1[v1_id]};
-            edges.push_back(e);
-            s.edges_from.push_back(e.id);
-            nodes[v1_id].edges_to.push_back(e.id);
-            nodes.push_back(s);
-            e = {(int)edges.size(), v2_id, t.id, 0, mu2[v2_id]};
-            edges.push_back(e);
-            nodes[v2_id].edges_from.push_back(e.id);
+            Edge e = {(int)gr.edges.size(), s.id, v1_id, 0, mu1[v1_id]};
+            gr.edges.push_back(e);
+            s.neighbors.push_back(e.id);
+            //gr.nodes[v1_id].edges_to.push_back(e.id);
+            gr.nodes.push_back(s);
+            e = {(int)gr.edges.size(), v2_id, t.id, 0, mu2[v2_id]};
+            gr.edges.push_back(e);
+            gr.nodes[v2_id].neighbors.push_back(e.id);
             t.edges_to.push_back(e.id);
-            nodes.push_back(t);
+            gr.nodes.push_back(t);
 
-            double wd = min_cost_flow(v1_id, v2_id);
+            double wd = gr.min_cost_flow(n_size, n_size + 1, 1);
             edge.ollivier_curvature = 1 - wd / edge.weight;
 
-            while (edges.size() > e_size) edges.pop_back();
-            while (nodes.size() > n_size) nodes.pop_back();
-            nodes[v1_id].edges_to.pop_back();
-            for (int edge_id : nodes[v1_id].edges_from) {
-                nodes[edges[edge_id].to].edges_to.pop_back();
-            }
-            nodes[v2_id].edges_from.pop_back();
-            for (int edge_id : nodes[v2_id].edges_from) {
-                nodes[edges[edge_id].to].edges_from.pop_back();
+            while (gr.edges.size() > e_size) gr.edges.pop_back();
+            while (gr.nodes.size() > n_size) gr.nodes.pop_back();
+            //gr.nodes[v1_id].edges_to.pop_back();
+            //for (int edge_id : nodes[v1_id].neighbors) {
+            //    gr.nodes[edges[edge_id].to].edges_to.pop_back();
+            //}
+            gr.nodes[v2_id].neighbors.pop_back();
+            for (int edge_id : nodes[v2_id].neighbors) {
+                gr.nodes[edges[edge_id].to].neighbors.pop_back();
             }
         }
     }
@@ -203,12 +211,12 @@ private:
         double wv1 = node1.weight, wv2 = node2.weight;
 
         double f = (wv1 + wv2) / we;
-        for (int ev1 : node1.edges_from) {
+        for (int ev1 : node1.neighbors) {
             if (nodes[edges[ev1].to].id != node2.id) {
                 f -= wv1 / sqrt(we * edges[ev1].weight);
             }
         }
-        for (int ev2 : node2.edges_from) {
+        for (int ev2 : node2.neighbors) {
             if (nodes[edges[ev2].to].id != node1.id) {
                 f -= wv2 / sqrt(we * edges[ev2].weight);
             }
@@ -218,10 +226,10 @@ private:
     }
 
     std::vector<double> _create_mu(int node_id, double idleness) const {
-        double spread = (1 - idleness) / nodes[node_id].edges_from.size();
+        double spread = (1 - idleness) / nodes[node_id].neighbors.size();
         std::vector<double> mu(nodes.size(), 0);
-        for (int id : nodes[node_id].edges_from) {
-            mu[id] = spread;
+        for (int id : nodes[node_id].neighbors) {
+            mu[edges[id].to] = spread;
         }
         mu[node_id] = idleness;
         return mu;
@@ -237,7 +245,7 @@ std::vector<std::vector<double>> floyd_warshall(Graph &gr) {
         A[i][i] = 0;
     }
     for (Node &v1 : gr.nodes) {
-        for (int ev1_id : v1.edges_from) {
+        for (int ev1_id : v1.neighbors) {
             A[v1.id][gr.edges[ev1_id].to] = gr.edges[ev1_id].weight;
         }
     }
@@ -253,22 +261,35 @@ std::vector<std::vector<double>> floyd_warshall(Graph &gr) {
 
 int main() {
     Graph g;
+    g.edge_weighted = 0;
+    g.node_weighted = 0;
     int n, m;
     std::cin >> n >> m;
     for (int i = 0; i < n; ++i) {
-        g.nodes.push_back({i, 1, {}, {}});
+        g.nodes.push_back({i, 1, std::vector<int>(), std::vector<int>()});
     }
     for (int i = 0; i < m; ++i) {
         int v1, v2;
         std::cin >> v1 >> v2;
         g.edges.push_back({i * 2, v1, v2, 1, MAX_FLOW, 0, 0});
-        g.nodes[v1].edges_from.push_back(i * 2);
-        g.nodes[v2].edges_to.push_back(i * 2);
+        g.nodes[v1].neighbors.push_back(i * 2);
+        //g.nodes[v2].edges_to.push_back(i * 2);
         g.edges.push_back({i * 2 + 1, v2, v1, 1, MAX_FLOW, 0, 0});
-        g.nodes[v2].edges_from.push_back(i * 2 + 1);
-        g.nodes[v1].edges_to.push_back(i * 2 + 1);
+        g.nodes[v2].neighbors.push_back(i * 2 + 1);
+        //g.nodes[v1].edges_to.push_back(i * 2 + 1);
     }
     g.forman();
-    g.ollivier(0.5);
+    g.ollivier();
+
+    for (Edge e : g.edges) std::cout << e.from << ' ' << e.to << ' ' << e.ollivier_curvature << '\n';
+
     return 0;
 }
+/*
+5 5
+0 1
+0 3
+1 2
+1 3
+3 4
+*/
