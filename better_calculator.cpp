@@ -44,10 +44,15 @@ public:
     std::vector<double> forman_curvature;
     std::vector<double> ollivier_curvature;
 
+    std::vector<double> node_forman_curvature;
+    std::vector<double> node_ollivier_curvature;
+
+    std::vector<std::vector<double>> distances;
+
     bool node_weighted;
     bool edge_weighted;
 
-    void _shortest_paths(int v0_id, std::vector<double> &dist, std::vector<Edge> &paths) {
+    void shortest_paths(int v0_id, std::vector<double> &dist, std::vector<Edge> &paths) {
         dist.assign(nodes.size(), MAX_DIST);
         dist[v0_id] = 0;
         std::vector<bool> inq(nodes.size(), false);
@@ -76,7 +81,7 @@ public:
     double min_cost_flow(int s, int t, double max_flow=MAX_FLOW) {
         Graph gr;
         gr.nodes = std::vector<Node>(nodes.size());
-        for (Node n : nodes) {
+        for (const Node &n : nodes) {
             gr.nodes[n.id] = {n.id, n.weight, {}, {}};
         }
         for (Edge e : edges) {
@@ -91,8 +96,8 @@ public:
         double cost = 0;
         std::vector<double> dist;
         std::vector<Edge> path;
-        while (flow < max_flow) {
-            gr._shortest_paths(s, dist, path);
+        while (flow < max_flow - EPS) {
+            gr.shortest_paths(s, dist, path);
             if (dist[t] == MAX_DIST)
                 break;
 
@@ -127,7 +132,7 @@ public:
     }
 
     // Транстпортное расстояние между mu1 и mu2
-    double fOT(std::vector<double> &mu1, std::vector<double> &mu2) {
+    double fOT(std::vector<double> &mu1, std::vector<double> &mu2, std::vector<std::vector<double>> &dists) {
         Graph gr;
         Node    s = {0, 1, {}, {}}, // добавляем исток
                 t = {1, 1, {}, {}}; // и сток
@@ -158,7 +163,7 @@ public:
         gr.nodes[0] = s;
         gr.nodes[1] = t;
 
-        std::vector<std::vector<double>> dists = floyd_warshall(*this);
+        //std::vector<std::vector<double>> dists = floyd_warshall(*this);
         for (auto ids1 : part1) {
             for (auto ids2 : part2) {
                 Edge e = {(int)gr.edges.size(), ids1.first, ids2.first, dists[ids1.second][ids2.second], MAX_FLOW};
@@ -175,17 +180,72 @@ public:
 
     // Вычисление кривизны Олливье-Риччи для всего графа потоковым методом
     void ollivier(double idleness=0) {
+        // Строим граф-копию и дополняем его истоком и стоком (нет)
         Graph gr;
         gr.nodes = nodes;
         gr.edges = edges;
         gr._fix_graph();
         for (Edge &edge : edges) {
             int v1_id = edge.from, v2_id = edge.to;
-            std::vector<double> mu1 = _create_mu(v1_id, idleness),
-                                mu2 = _create_mu(v2_id, idleness);
+            std::vector<double> mu1 = _create_mu_from(v1_id, idleness),
+                                mu2 = _create_mu_to(v2_id, idleness);
 
-            double wd = fOT(mu1, mu2); // gr.min_cost_flow(n_size, n_size + 1, 1);
-            ollivier_curvature[edge.id] = 1 - wd / edge.weight;
+            double wd = fOT(mu1, mu2, distances);
+            ollivier_curvature[edge.id] = 1 - wd / distances[v1_id][v2_id]; // edge.weight;
+        }
+    }
+
+    // Кривизна вершин (оба варианта) ((это несложно, просто среднее арифметическре кривизн инцедентных ребер))
+    void node_forman(int type=3) { // 1 - учитываются только исходящие ребра, 2 - только входящие, 3 - все инцидентные
+        _fix_graph();
+        for (Node &n : nodes) {
+            double sum = 0;
+            int count = 0;
+            if (type & 1) {
+                count += n.from.size();
+                for (int id : n.from) {
+                    sum += forman_curvature[id];
+                }
+            }
+            if (type & 2) {
+                count += n.to.size();
+                for (int id : n.to) {
+                    sum += forman_curvature[id];
+                }
+            }
+            node_forman_curvature[n.id] = sum / count;
+        }
+    }
+    void node_ollivier(int type=3) { // 1 - учитываются только исходящие ребра, 2 - только входящие, 3 - все инцидентные
+        _fix_graph();
+        for (Node &n : nodes) {
+            double sum = 0;
+            int count = 0;
+            if (type & 1) {
+                count += n.from.size();
+                for (int id : n.from) {
+                    sum += ollivier_curvature[id];
+                }
+            }
+            if (type & 2) {
+                count += n.to.size();
+                for (int id : n.to) {
+                    sum += ollivier_curvature[id];
+                }
+            }
+            node_ollivier_curvature[n.id] = sum / count;
+        }
+    }
+
+    // Одна итерация потока Риччи
+    void ricci_flow(double step=1) {
+        std::vector<double> new_weights(edges.size());
+        if (ollivier_curvature.empty()) {
+            std::cout << "please run the \"ollivier()\" with required idleness\n";
+            return;
+        }
+        for (Edge &e : edges) {
+            e.weight *= 1 - step * ollivier_curvature[e.id];
         }
     }
 private:
@@ -197,29 +257,42 @@ private:
         if (ollivier_curvature.empty()) {
             ollivier_curvature.resize(edges.size());
         }
+        if (node_forman_curvature.empty()) {
+            forman_curvature.resize(nodes.size());
+        }
+        if (node_ollivier_curvature.empty()) {
+            ollivier_curvature.resize(nodes.size());
+        }
+
         if (!node_weighted) {
             for (Node &node : nodes) {
                 node.weight = 1;
             }
+            node_weighted = 1;
         }
         if (!edge_weighted) {
             for (Edge &edge : edges) {
                 edge.weight = 1;
             }
+            edge_weighted = 1;
+        }
+
+        if (distances.empty()) {
+            distances = floyd_warshall(*this);
         }
     }
 
     // возвращает кривизну Формана-Риччи ребра с переданным id
     double _forman_edge(int edge_id) const {
         Edge edge = edges[edge_id];
-        int v1 = edge.from, v2 = edge.to;
-        Node node1 = nodes[v1], node2 = nodes[v2];
+        int id1 = edge.from, id2 = edge.to;
+        Node node1 = nodes[id1], node2 = nodes[id2];
 
         double we = edge.weight;
         double wv1 = node1.weight, wv2 = node2.weight;
 
         double f = (wv1 + wv2) / we;
-        for (int ev1 : node1.from) {
+        for (int ev1 : node1.from) {                          // to <-> from ???
             if (nodes[edges[ev1].to].id != node2.id) {
                 f -= wv1 / sqrt(we * edges[ev1].weight);
             }
@@ -233,17 +306,32 @@ private:
         return  f;
     }
 
-    std::vector<double> _create_mu(int node_id, double idleness) const {
-        double spread = (1 - idleness) / nodes[node_id].from.size();
+    std::vector<double> _create_mu_from(int node_id, double idleness) const {
+        double C = 0;
+        for (int id : nodes[node_id].to) {
+            C += exp(-distances[edges[id].from][node_id]);
+        }
+        double spread = (1 - idleness) / C; // nodes[node_id].to.size();
         std::vector<double> mu(nodes.size(), 0);
-        for (int id : nodes[node_id].from) {
-            mu[edges[id].to] = spread;
+        for (int id : nodes[node_id].to) {
+            mu[edges[id].from] = spread * exp(-distances[edges[id].from][node_id]);
         }
         mu[node_id] = idleness;
         return mu;
     }
-
-    std::vector<std::vector<Node>> data;
+    std::vector<double> _create_mu_to(int node_id, double idleness) const {
+        double C = 0;
+        for (int id : nodes[node_id].from) {
+            C += exp(-distances[node_id][edges[id].to]);
+        }
+        double spread = (1 - idleness) / C; // nodes[node_id].from.size();
+        std::vector<double> mu(nodes.size(), 0);
+        for (int id : nodes[node_id].from) {
+            mu[edges[id].to] = spread * exp(-distances[node_id][edges[id].to]);
+        }
+        mu[node_id] = idleness;
+        return mu;
+    }
 };
 
 // Стандартный алгоритм флойда-уоршелла; принимает граф, возвращает матрицу расстояний между парами вершин
@@ -290,6 +378,11 @@ int main() {
     g.forman();
     g.ollivier();
 
+    for (Edge e : g.edges) std::cout << e.from << ' ' << e.to << ' ' << g.ollivier_curvature[e.id] << '\n';
+    for (Edge e : g.edges) std::cout << e.from << ' ' << e.to << ' ' << g.forman_curvature[e.id] << '\n';
+
+    g.ricci_flow(0.65);
+    g.ollivier();
     for (Edge e : g.edges) std::cout << e.from << ' ' << e.to << ' ' << g.ollivier_curvature[e.id] << '\n';
 
     return 0;
