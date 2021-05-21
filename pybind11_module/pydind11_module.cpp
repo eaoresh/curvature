@@ -263,7 +263,7 @@ void dfs(std::vector<std::vector<double>> &graph, int v, int cnt, std::vector<bo
     // comp[v] = c_num;
 
     for (int u: graph[v]) {
-        if (!used[u]) {
+        if (!used[u] && (graph[v][u] > EPS || graph[u][v] > EPS)) {
             dfs(graph, u, cnt, used);
         }
     }
@@ -282,6 +282,18 @@ int connected_components(std::vector<std::vector<double>> &graph) {
 
     return counter;
 }
+
+
+// Одна итерация потока Риччи на графе graph с ideleness=k и коэффициентом изменения веса mult
+void ricci_flow_iteration(std::vector<std::vector<double>> &graph, double k=1, double mult=1) {
+    std::vector<std::vector<double>> curvatures = calculate_ollivier(graph, k);
+    for (int i = 0; i < graph.size(); ++i) {
+        for (int j = 0; j < graph.size(); ++j) {
+            graph[i][j] *= 1 - mult * curvatures[i][j];
+        }
+    }
+}
+
 
 
 namespace py = pybind11;
