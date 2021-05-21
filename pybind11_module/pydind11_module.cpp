@@ -229,5 +229,5 @@ namespace py = pybind11;
 PYBIND11_MODULE(ricci_calculator, m) {
     m.doc() = "pybind11 plugin for compute some curvatures";
 
-    m.def("ollivier", &ollivier, "Compute ollivier-ricci curvatures for all edges in given graph");
+    m.def("calculate_ollivier", &calculate_ollivier, "Compute ollivier-ricci curvatures for all edges in given graph");
 }
