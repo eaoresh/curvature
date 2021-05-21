@@ -286,7 +286,7 @@ int connected_components(std::vector<std::vector<double>> &graph) {
 
 // Одна итерация потока Риччи на графе graph с ideleness и коэффициентом изменения веса mult,
 // хирургия происходит при увеличении веса ребра в k раз
-void ricci_flow(std::vector<std::vector<double>> &graph, double ideleness=1, double mult=1, double k=1) {
+void ricci_flow(std::vector<std::vector<double>> &graph, double ideleness=1, double k=1, double mult=1) {
     std::vector<std::vector<double>> curvatures = calculate_ollivier(graph, ideleness);
     for (int i = 0; i < graph.size(); ++i) {
         for (int j = 0; j < graph.size(); ++j) {
