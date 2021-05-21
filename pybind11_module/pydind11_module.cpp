@@ -258,13 +258,41 @@ std::vector<std::vector<double>> calculate_forman(std::vector<std::vector<double
 }
 
 
+void dfs(std::vector<std::vector<double>> &graph, int v, int cnt, std::vector<bool> &used) {    // cnt - номер текущей компоненты
+    used[v] = true;
+    // comp[v] = c_num;
+
+    for (int u: graph[v]) {
+        if (!used[u]) {
+            dfs(graph, u, cnt, used);
+        }
+    }
+}
+
+int connected_components(std::vector<std::vector<double>> &graph) {
+    int counter = 0;
+    std::vector<bool> used(graph.size());
+
+    for (int i = 0; i < graph.size(); i++) {
+        if (!used[i]) {     // если вершина не была достижима ни из одной обработанной
+            dfs(graph, i, counter, used);
+            counter++;
+        }
+    }
+
+    return counter;
+}
+
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(ricci_calculator, m) {
     m.doc() = "pybind11 plugin for compute some curvatures";
 
     m.def("calculate_ollivier", &calculate_ollivier,
-          "Compute ollivier-ricci curvatures for all edges in given graph");
+          "Computation ollivier-ricci curvatures for all edges in given graph");
     m.def("calculate_forman", &calculate_forman,
-          "Compute forman-ricci curvatures for all edges in given graph");
+          "Computation forman-ricci curvatures for all edges in given graph");
+    m.def("connected_components", &connected_components,
+          "Calculating the number of connected components in a given graph");
 }
