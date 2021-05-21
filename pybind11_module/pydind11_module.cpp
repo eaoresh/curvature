@@ -284,12 +284,16 @@ int connected_components(std::vector<std::vector<double>> &graph) {
 }
 
 
-// Одна итерация потока Риччи на графе graph с ideleness=k и коэффициентом изменения веса mult
-void ricci_flow_iteration(std::vector<std::vector<double>> &graph, double k=1, double mult=1) {
-    std::vector<std::vector<double>> curvatures = calculate_ollivier(graph, k);
+// Одна итерация потока Риччи на графе graph с ideleness и коэффициентом изменения веса mult,
+// хирургия происходит при увеличении веса ребра в k раз
+void ricci_flow(std::vector<std::vector<double>> &graph, double ideleness=1, double mult=1, double k=1) {
+    std::vector<std::vector<double>> curvatures = calculate_ollivier(graph, ideleness);
     for (int i = 0; i < graph.size(); ++i) {
         for (int j = 0; j < graph.size(); ++j) {
             graph[i][j] *= 1 - mult * curvatures[i][j];
+            if (1 - mult * curvatures[i][j] > k + EPS) {
+                graph[i][j] = 0;    // -1 may be?
+            }
         }
     }
 }
@@ -307,4 +311,6 @@ PYBIND11_MODULE(ricci_calculator, m) {
           "Computation forman-ricci curvatures for all edges in given graph");
     m.def("connected_components", &connected_components,
           "Calculating the number of connected components in a given graph");
+    m.def("ricci_flow", &ricci_flow,
+          "Passing the Ricci flow with surgery on a given graph");
 }
