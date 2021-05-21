@@ -204,7 +204,7 @@ std::vector<double> _create_mu_to(std::vector<std::vector<double>> &graph, int v
 }
 
 // Возвращает вектор кривизн Олливье-Риччи для переданного графа с заданным параметром
-vector<vector<double>> calculate_ollivier(vector<vector<double>> &graph, double k) {
+std::vector<std::vector<double>> calculate_ollivier(std::vector<std::vector<double>> &graph, double k) {
     std::vector<std::vector<double>> distances = floyd_warshall(graph);
     std::vector<std::vector<double>> curvatures(graph.size(), std::vector<double>(graph.size(), 0));
 
@@ -224,10 +224,47 @@ vector<vector<double>> calculate_ollivier(vector<vector<double>> &graph, double 
 }
 
 
+// возвращает кривизну Формана-Риччи ребра между вершинами v и u графа graph
+double forman_edge(std::vector<std::vector<double>> &graph, int v, int u) {
+    double we = graph[v][u];
+    double wv1 = 1, wv2 = 1;    // полагаем веса вершин равными 1
+
+    double f = (wv1 + wv2) / we;
+    for (int i = 0; i < graph.size(); ++i) {                          // to <-> from ???
+        if (graph[v][i] > EPS && i != u) {
+            f -= wv1 / sqrt(we * graph[v][i]);
+        }
+    }
+    for (int i = 0; i < graph.size(); ++i) {                          // to <-> from ???
+        if (graph[i][u] > EPS && i != v) {
+            f -= wv1 / sqrt(we * graph[i][u]);
+        }
+    }
+    f *= we;
+    return  f;
+}
+
+std::vector<std::vector<double>> calculate_forman(std::vector<std::vector<double>> &graph) {
+    std::vector<std::vector<double>> curvatures(graph.size(), std::vector<double>(graph.size(), 0));
+    for (int i = 0; i < graph.size(); ++i) {
+        for (int j = 0; j < graph.size(); ++j) {
+            if (graph[i][j] > EPS) {
+                curvatures[i][j] = forman_edge(graph, i, j);
+            }
+        }
+    }
+
+    return curvatures;
+}
+
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(ricci_calculator, m) {
     m.doc() = "pybind11 plugin for compute some curvatures";
 
-    m.def("calculate_ollivier", &calculate_ollivier, "Compute ollivier-ricci curvatures for all edges in given graph");
+    m.def("calculate_ollivier", &calculate_ollivier,
+          "Compute ollivier-ricci curvatures for all edges in given graph");
+    m.def("calculate_forman", &calculate_forman,
+          "Compute forman-ricci curvatures for all edges in given graph");
 }
