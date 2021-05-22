@@ -286,18 +286,18 @@ int connected_components(std::vector<std::vector<double>> &graph) {
 
 // Одна итерация потока Риччи на графе graph с ideleness и коэффициентом изменения веса mult,
 // хирургия происходит при увеличении веса ребра в k раз
-std::vector<std::vector<double>> ricci_flow(std::vector<std::vector<double>> &graph, double ideleness=1,
-                                            double k=1, double mult=1) {
-    std::vector<std::vector<double>> curvatures = calculate_ollivier(graph, ideleness); // в эту же матрицу вносим изменения
+std::vector<std::vector<double>> ricci_flow(std::vector<std::vector<double>> &graph,
+                                            std::vector<std::vector<double>> &curvatures, double k=1, double mult=1) {
+    std::vector<std::vector<double>> weights = graph;
     for (int i = 0; i < graph.size(); ++i) {
         for (int j = 0; j < graph.size(); ++j) {
-            curvatures[i][j] = graph[i][j] * (1 - mult * curvatures[i][j]);
+            weights[i][j] = graph[i][j] * (1 - mult * curvatures[i][j]);
             if (1 - mult * curvatures[i][j] > k + EPS) {
-                curvatures[i][j] = -1;
+                weights[i][j] = -1;
             }
         }
     }
-    return curvatures;
+    return weights;
 }
 
 
