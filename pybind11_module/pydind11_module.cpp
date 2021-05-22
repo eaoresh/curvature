@@ -262,7 +262,7 @@ void dfs(std::vector<std::vector<double>> &graph, int v, int cnt, std::vector<bo
     used[v] = true;
     // comp[v] = c_num;
 
-    for (int u: graph[v]) {
+    for (int u = 0; u < graph.size(); ++u) {
         if (!used[u] && (graph[v][u] > EPS || graph[u][v] > EPS)) {
             dfs(graph, u, cnt, used);
         }
@@ -271,12 +271,12 @@ void dfs(std::vector<std::vector<double>> &graph, int v, int cnt, std::vector<bo
 
 int connected_components(std::vector<std::vector<double>> &graph) {
     int counter = 0;
-    std::vector<bool> used(graph.size());
+    std::vector<bool> used(graph.size(), false);
 
-    for (int i = 0; i < graph.size(); i++) {
+    for (int i = 0; i < graph.size(); ++i) {
         if (!used[i]) {     // если вершина не была достижима ни из одной обработанной
             dfs(graph, i, counter, used);
-            counter++;
+            ++counter;
         }
     }
 
