@@ -18,8 +18,8 @@ using namespace std;
 // g - в виде списка ребер со всей информацией
 
 struct Edge {
-    int to;
     int from;
+    int to;
     double weight;
     double capacity;
 };
@@ -93,8 +93,8 @@ double min_cost_flow(std::vector<std::vector<Edge>> &gr, int s, int t, double ma
         for (Edge &e : v) {
             adj[e.from].push_back(g.size());
             g.push_back(e);
-            adj[e.from].push_back(g.size());
-            g.push_back(inverted(g.back()));
+            adj[e.to].push_back(g.size());
+            g.push_back(inverted(e));
         }
     }
 
@@ -160,7 +160,7 @@ double fOT(std::vector<double> &mu1, std::vector<double> &mu2, std::vector<std::
         }
     }
 
-    double ans = min_cost_flow(gr, s, t, 1);
+    double ans = min_cost_flow(gr, s, t, gr.size());
 
     return ans;
 }
@@ -204,7 +204,7 @@ std::vector<double> _create_mu_to(std::vector<std::vector<double>> &graph, int v
 }
 
 // Возвращает вектор кривизн Олливье-Риччи для переданного графа с заданным параметром
-std::vector<std::vector<double>> calculate_ollivier(std::vector<std::vector<double>> &graph, double k) {
+std::vector<std::vector<double>> calculate_ollivier(std::vector<std::vector<double>> &graph, double k=0) {
     std::vector<std::vector<double>> distances = floyd_warshall(graph);
     std::vector<std::vector<double>> curvatures(graph.size(), std::vector<double>(graph.size(), 0));
 
