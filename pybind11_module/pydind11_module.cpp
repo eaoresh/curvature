@@ -35,9 +35,6 @@ Edge inverted(Edge edge) {
 std::vector<std::vector<double>> floyd_warshall(vector<vector<double>> &graph) {
     std::vector<std::vector<double>> A(graph.size(),std::vector<double>(graph.size(), MAX_DIST));
     for (size_t i = 0; i < graph.size(); ++i) {
-        A[i][i] = 0;
-    }
-    for (size_t i = 0; i < graph.size(); ++i) {
         for (size_t j = 0; j < graph.size(); ++j) {
             if (graph[i][j] < EPS) {
                 A[i][j] = MAX_DIST;
@@ -45,6 +42,9 @@ std::vector<std::vector<double>> floyd_warshall(vector<vector<double>> &graph) {
                 A[i][j] = graph[i][j];
             }
         }
+    }
+    for (size_t i = 0; i < graph.size(); ++i) {
+        A[i][i] = 0;
     }
     for (size_t k = 0; k < graph.size(); ++k)
         for (size_t i = 0; i < graph.size(); ++i)
