@@ -237,7 +237,7 @@ double forman_edge(std::vector<std::vector<double>> &graph, int v, int u) {
     }
     for (int i = 0; i < graph.size(); ++i) {                          // to <-> from ???
         if (graph[i][u] > EPS && i != v) {
-            f -= wv1 / sqrt(we * graph[i][u]);
+            f -= wv2 / sqrt(we * graph[i][u]);
         }
     }
     f *= we;
