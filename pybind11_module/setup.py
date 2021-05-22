@@ -5,8 +5,8 @@ from pybind11.setup_helpers import Pybind11Extension
 ext_modules = [
     Pybind11Extension(
         "ricci_calculator",            # python module name goes here
-        ["./main.cpp"],       # relative path to cpp file
-        cxx_std=17,             # required cxx_std version
+        ["./pybind11_module.cpp"],     # relative path to cpp file
+        cxx_std=17,                    # required cxx_std version
     ),
 ]
 
