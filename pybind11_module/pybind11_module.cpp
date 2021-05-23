@@ -160,7 +160,7 @@ double fOT(std::vector<double> &mu1, std::vector<double> &mu2, std::vector<std::
         }
     }
 
-    double ans = min_cost_flow(gr, s, t, gr.size());
+    double ans = min_cost_flow(gr, s, t, 1);
 
     return ans;
 }
