@@ -210,6 +210,7 @@ std::vector<std::vector<double>> calculate_ollivier(std::vector<std::vector<doub
 
     for (int i = 0; i < graph.size(); ++i) {
         for (int j = 0; j < graph.size(); ++j) {
+            if (i == j) continue;
             if (graph[i][j] > EPS) {
                 std::vector<double> mu1 = _create_mu_from(graph, i, k, distances),
                         mu2 = _create_mu_to(graph, j, k, distances);
@@ -248,6 +249,7 @@ std::vector<std::vector<double>> calculate_forman(std::vector<std::vector<double
     std::vector<std::vector<double>> curvatures(graph.size(), std::vector<double>(graph.size(), 0));
     for (int i = 0; i < graph.size(); ++i) {
         for (int j = 0; j < graph.size(); ++j) {
+            if (i == j) continue;
             if (graph[i][j] > EPS) {
                 curvatures[i][j] = forman_edge(graph, i, j);
             }
@@ -268,6 +270,7 @@ void dfs(std::vector<std::vector<double>> &graph, int v, int cnt, std::vector<bo
         }
     }
 }
+
 
 int connected_components(std::vector<std::vector<double>> &graph) {
     int counter = 0;
@@ -291,8 +294,9 @@ std::vector<std::vector<double>> ricci_flow(std::vector<std::vector<double>> &gr
     std::vector<std::vector<double>> weights = graph;
     for (int i = 0; i < graph.size(); ++i) {
         for (int j = 0; j < graph.size(); ++j) {
+            if (i == j) continue;
             weights[i][j] = graph[i][j] * (1 - mult * curvatures[i][j]);
-            if (1 - mult * curvatures[i][j] > k + EPS) {
+            if (graph[i][j] < EPS || 1 - mult * curvatures[i][j] > k + EPS) {
                 weights[i][j] = -1;
             }
         }
