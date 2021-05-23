@@ -301,6 +301,21 @@ std::vector<std::vector<double>> ricci_flow(std::vector<std::vector<double>> &gr
 }
 
 
+// В текущем варианте сумма считается по исходящим ребрам
+std::vector<double> node_curvature(std::vector<std::vector<double>> &graph,
+                                   std::vector<std::vector<double>> &curvatures) {
+    std::vector<double> node_curv(graph.size(), 0);
+    for (int i = 0; i < graph.size(); ++i) {
+        for (int j = 0; j < graph.size(); ++j) {
+            if (graph[i][j] > EPS) {
+                node_curv[i] += graph[i][j] * curvatures[i][j];
+            }
+        }
+    }
+    return node_curv;
+}
+
+
 
 namespace py = pybind11;
 
@@ -315,4 +330,6 @@ PYBIND11_MODULE(ricci_calculator, m) {
           "Calculating the number of connected components in a given graph");
     m.def("ricci_flow", &ricci_flow,
           "Passing the Ricci flow with surgery on a given graph");
+    m.def("node_curvature", &node_curvature,
+          "Computation node curvatures for all nodes in given graph with given edge-curvature");
 }
